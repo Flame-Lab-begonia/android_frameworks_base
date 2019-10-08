@@ -121,6 +121,21 @@ public class QuickStatusBarHeader extends RelativeLayout implements
                                 Settings.Secure.QS_SHOW_AUTO_BRIGHTNESS;
     private static final String QS_SHOW_BRIGHTNESS_SLIDER =
                                 Settings.Secure.QS_SHOW_BRIGHTNESS_SLIDER;
+            "lineagesecure:" + LineageSettings.Secure.QS_SHOW_BRIGHTNESS_SLIDER;
+    private static final String SHOW_QS_CLOCK =
+            "system:" + Settings.System.SHOW_QS_CLOCK;
+    private static final String QS_SHOW_BATTERY_PERCENT =
+            "system:" + Settings.System.QS_SHOW_BATTERY_PERCENT;
+    private static final String QS_SHOW_BATTERY_ESTIMATE =
+            "system:" + Settings.System.QS_SHOW_BATTERY_ESTIMATE;
+    public static final String STATUS_BAR_BATTERY_STYLE =
+            "system:" + Settings.System.STATUS_BAR_BATTERY_STYLE;
+    public static final String QS_BATTERY_STYLE =
+            "system:" + Settings.System.QS_BATTERY_STYLE;
+    public static final String QS_BATTERY_LOCATION =
+            "system:" + Settings.System.QS_BATTERY_LOCATION;
+    public static final String STATUS_BAR_CUSTOM_HEADER =
+            "system:" + Settings.System.STATUS_BAR_CUSTOM_HEADER;
 
     private final NextAlarmController mAlarmController;
     private final ZenModeController mZenController;
@@ -169,6 +184,11 @@ public class QuickStatusBarHeader extends RelativeLayout implements
     private BroadcastDispatcher mBroadcastDispatcher;
 
     private final Handler mHandler = new Handler();
+    private int mStatusBarBatteryStyle, mQSBatteryStyle;
+
+    private boolean mLandscape;
+    private boolean mHeaderImageEnabled;
+
     private PrivacyItemController mPrivacyItemController;
     private final UiEventLogger mUiEventLogger;
     // Used for RingerModeTracker
@@ -303,9 +323,6 @@ public class QuickStatusBarHeader extends RelativeLayout implements
         mPrivacyChip.setOnClickListener(this::onClick);
         mCarrierGroup = findViewById(R.id.carrier_group);
 
-
-        updateResources();
-
         Rect tintArea = new Rect(0, 0, 0, 0);
         int colorForeground = Utils.getColorAttrDefaultColor(getContext(),
                 android.R.attr.colorForeground);
@@ -337,10 +354,21 @@ public class QuickStatusBarHeader extends RelativeLayout implements
         mAllIndicatorsEnabled = mPrivacyItemController.getAllIndicatorsAvailable();
         mMicCameraIndicatorsEnabled = mPrivacyItemController.getMicCameraAvailable();
 
+        updateResources();
+
         Dependency.get(TunerService.class).addTunable(this,
                 StatusBarIconController.ICON_BLACKLIST,
                 QS_SHOW_AUTO_BRIGHTNESS, QS_SHOW_BRIGHTNESS_SLIDER);
         updateSettings();
+                QS_SHOW_AUTO_BRIGHTNESS,
+                QS_SHOW_BRIGHTNESS_SLIDER,
+                SHOW_QS_CLOCK,
+                QS_SHOW_BATTERY_PERCENT,
+                QS_SHOW_BATTERY_ESTIMATE,
+                STATUS_BAR_BATTERY_STYLE,
+                QS_BATTERY_STYLE,
+                QS_BATTERY_LOCATION,
+                STATUS_BAR_CUSTOM_HEADER);
     }
 
     public QuickQSPanel getHeaderQsPanel() {
@@ -440,12 +468,8 @@ public class QuickStatusBarHeader extends RelativeLayout implements
     @Override
     protected void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        mLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE;
         updateResources();
-
-        // Update color schemes in landscape to use wallpaperTextColor
-        boolean shouldUseWallpaperTextColor =
-                newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE;
-        mClockView.useWallpaperTextColor(shouldUseWallpaperTextColor);
     }
 
     @Override
@@ -470,6 +494,10 @@ public class QuickStatusBarHeader extends RelativeLayout implements
                     + mContext.getResources().getDimensionPixelSize(
                     R.dimen.qs_tile_margin_top);
         }
+        if (mHeaderImageEnabled) {
+            qqsHeight += mContext.getResources().getDimensionPixelSize(
+                    R.dimen.qs_header_image_offset);
+        }
 
         setMinimumHeight(sbHeight + qqsHeight);
     }
@@ -487,8 +515,11 @@ public class QuickStatusBarHeader extends RelativeLayout implements
                 resources.getDimensionPixelSize(R.dimen.qs_header_tooltip_height);
         mHeaderTextContainerView.setLayoutParams(mHeaderTextContainerView.getLayoutParams());
 
-        mSystemIconsView.getLayoutParams().height = resources.getDimensionPixelSize(
-                com.android.internal.R.dimen.quick_qs_offset_height);
+        int topMargin = resources.getDimensionPixelSize(
+                com.android.internal.R.dimen.quick_qs_offset_height) + (mHeaderImageEnabled ?
+                resources.getDimensionPixelSize(R.dimen.qs_header_image_offset) : 0);
+
+        mSystemIconsView.getLayoutParams().height = topMargin;
         mSystemIconsView.setLayoutParams(mSystemIconsView.getLayoutParams());
 
         if (mIsQuickQsBrightnessEnabled) {
@@ -505,8 +536,7 @@ public class QuickStatusBarHeader extends RelativeLayout implements
 
         ViewGroup.LayoutParams lp = getLayoutParams();
         if (mQsDisabled) {
-            lp.height = resources.getDimensionPixelSize(
-                    com.android.internal.R.dimen.quick_qs_offset_height);
+            lp.height = topMargin;
         } else {
             lp.height = WRAP_CONTENT;
         }
@@ -515,6 +545,9 @@ public class QuickStatusBarHeader extends RelativeLayout implements
         updateStatusIconAlphaAnimator();
         updateHeaderTextContainerAlphaAnimator();
         updatePrivacyChipAlphaAnimator();
+
+        boolean shouldUseWallpaperTextColor = mLandscape && !mHeaderImageEnabled;
+        mClockView.useWallpaperTextColor(shouldUseWallpaperTextColor);
     }
 
     private void updateSettings() {
@@ -901,6 +934,68 @@ public class QuickStatusBarHeader extends RelativeLayout implements
         } else if (QS_SHOW_AUTO_BRIGHTNESS.equals(key)) {
             mIsQsAutoBrightnessEnabled = TunerService.parseIntegerSwitch(newValue, true);
             updateResources();
+        switch (key) {
+            case QS_SHOW_BRIGHTNESS_SLIDER:
+                mIsQuickQsBrightnessEnabled = TunerService.parseInteger(newValue, 0) > 1;
+                updateResources();
+                break;
+            case QS_SHOW_AUTO_BRIGHTNESS:
+                mIsQsAutoBrightnessEnabled = TunerService.parseIntegerSwitch(newValue, true);
+                updateResources();
+                break;
+            case SHOW_QS_CLOCK:
+                boolean showClock =
+                        TunerService.parseIntegerSwitch(newValue, true);
+                mClockView.setClockVisibleByUser(showClock);
+                break;
+            case QS_SHOW_BATTERY_PERCENT:
+                mBatteryRemainingIcon.mShowBatteryPercent =
+                        TunerService.parseInteger(newValue, 2);
+                mBatteryIcon.mShowBatteryPercent =
+                        TunerService.parseInteger(newValue, 2);
+                mBatteryRemainingIcon.updatePercentView();
+                mBatteryRemainingIcon.updateVisibility();
+                mBatteryIcon.updatePercentView();
+                mBatteryIcon.updateVisibility();
+                break;
+            case QS_SHOW_BATTERY_ESTIMATE:
+                mBatteryRemainingIcon.mShowBatteryEstimate =
+                        TunerService.parseInteger(newValue, 0);
+                mBatteryIcon.mShowBatteryEstimate =
+                        TunerService.parseInteger(newValue, 0);
+                mBatteryRemainingIcon.updatePercentView();
+                mBatteryRemainingIcon.updateVisibility();
+                mBatteryIcon.updatePercentView();
+                mBatteryIcon.updateVisibility();
+                break;
+            case STATUS_BAR_BATTERY_STYLE:
+                mStatusBarBatteryStyle =
+                        TunerService.parseInteger(newValue, 0);
+                updateBatteryStyle();
+                break;
+            case QS_BATTERY_STYLE:
+                mQSBatteryStyle =
+                        TunerService.parseInteger(newValue, -1);
+                updateBatteryStyle();
+                break;
+            case QS_BATTERY_LOCATION:
+                int location =
+                        TunerService.parseInteger(newValue, 0);
+                if (location == 0) {
+                    mBatteryIcon.setVisibility(View.GONE);
+                    mBatteryRemainingIcon.setVisibility(View.VISIBLE);
+                } else {
+                    mBatteryRemainingIcon.setVisibility(View.GONE);
+                    mBatteryIcon.setVisibility(View.VISIBLE);
+                }
+                break;
+            case STATUS_BAR_CUSTOM_HEADER:
+                mHeaderImageEnabled =
+                        TunerService.parseIntegerSwitch(newValue, false);
+                updateResources();
+                break;
+            default:
+                break;
         }
     }
 }
