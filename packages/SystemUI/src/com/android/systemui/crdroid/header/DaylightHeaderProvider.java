@@ -50,7 +50,7 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
-import com.android.internal.util.crdroid.Utils;
+import com.android.internal.util.stag.Utils;
 
 import com.android.systemui.R;
 
