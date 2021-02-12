@@ -121,21 +121,8 @@ public class QuickStatusBarHeader extends RelativeLayout implements
                                 Settings.Secure.QS_SHOW_AUTO_BRIGHTNESS;
     private static final String QS_SHOW_BRIGHTNESS_SLIDER =
                                 Settings.Secure.QS_SHOW_BRIGHTNESS_SLIDER;
-            "lineagesecure:" + LineageSettings.Secure.QS_SHOW_BRIGHTNESS_SLIDER;
-    private static final String SHOW_QS_CLOCK =
-            "system:" + Settings.System.SHOW_QS_CLOCK;
-    private static final String QS_SHOW_BATTERY_PERCENT =
-            "system:" + Settings.System.QS_SHOW_BATTERY_PERCENT;
-    private static final String QS_SHOW_BATTERY_ESTIMATE =
-            "system:" + Settings.System.QS_SHOW_BATTERY_ESTIMATE;
-    public static final String STATUS_BAR_BATTERY_STYLE =
-            "system:" + Settings.System.STATUS_BAR_BATTERY_STYLE;
-    public static final String QS_BATTERY_STYLE =
-            "system:" + Settings.System.QS_BATTERY_STYLE;
-    public static final String QS_BATTERY_LOCATION =
-            "system:" + Settings.System.QS_BATTERY_LOCATION;
     public static final String STATUS_BAR_CUSTOM_HEADER =
-            "system:" + Settings.System.STATUS_BAR_CUSTOM_HEADER;
+                                 Settings.System.STATUS_BAR_CUSTOM_HEADER;
 
     private final NextAlarmController mAlarmController;
     private final ZenModeController mZenController;
@@ -184,7 +171,6 @@ public class QuickStatusBarHeader extends RelativeLayout implements
     private BroadcastDispatcher mBroadcastDispatcher;
 
     private final Handler mHandler = new Handler();
-    private int mStatusBarBatteryStyle, mQSBatteryStyle;
 
     private boolean mLandscape;
     private boolean mHeaderImageEnabled;
@@ -358,17 +344,9 @@ public class QuickStatusBarHeader extends RelativeLayout implements
 
         Dependency.get(TunerService.class).addTunable(this,
                 StatusBarIconController.ICON_BLACKLIST,
-                QS_SHOW_AUTO_BRIGHTNESS, QS_SHOW_BRIGHTNESS_SLIDER);
+                QS_SHOW_AUTO_BRIGHTNESS, QS_SHOW_BRIGHTNESS_SLIDER,  STATUS_BAR_CUSTOM_HEADER);
         updateSettings();
-                QS_SHOW_AUTO_BRIGHTNESS,
-                QS_SHOW_BRIGHTNESS_SLIDER,
-                SHOW_QS_CLOCK,
-                QS_SHOW_BATTERY_PERCENT,
-                QS_SHOW_BATTERY_ESTIMATE,
-                STATUS_BAR_BATTERY_STYLE,
-                QS_BATTERY_STYLE,
-                QS_BATTERY_LOCATION,
-                STATUS_BAR_CUSTOM_HEADER);
+               
     }
 
     public QuickQSPanel getHeaderQsPanel() {
@@ -928,12 +906,6 @@ public class QuickStatusBarHeader extends RelativeLayout implements
 
     @Override
     public void onTuningChanged(String key, String newValue) {
-        if (QS_SHOW_BRIGHTNESS_SLIDER.equals(key)) {
-            mIsQuickQsBrightnessEnabled = TunerService.parseInteger(newValue, 0) > 1;
-            updateResources();
-        } else if (QS_SHOW_AUTO_BRIGHTNESS.equals(key)) {
-            mIsQsAutoBrightnessEnabled = TunerService.parseIntegerSwitch(newValue, true);
-            updateResources();
         switch (key) {
             case QS_SHOW_BRIGHTNESS_SLIDER:
                 mIsQuickQsBrightnessEnabled = TunerService.parseInteger(newValue, 0) > 1;
@@ -942,52 +914,6 @@ public class QuickStatusBarHeader extends RelativeLayout implements
             case QS_SHOW_AUTO_BRIGHTNESS:
                 mIsQsAutoBrightnessEnabled = TunerService.parseIntegerSwitch(newValue, true);
                 updateResources();
-                break;
-            case SHOW_QS_CLOCK:
-                boolean showClock =
-                        TunerService.parseIntegerSwitch(newValue, true);
-                mClockView.setClockVisibleByUser(showClock);
-                break;
-            case QS_SHOW_BATTERY_PERCENT:
-                mBatteryRemainingIcon.mShowBatteryPercent =
-                        TunerService.parseInteger(newValue, 2);
-                mBatteryIcon.mShowBatteryPercent =
-                        TunerService.parseInteger(newValue, 2);
-                mBatteryRemainingIcon.updatePercentView();
-                mBatteryRemainingIcon.updateVisibility();
-                mBatteryIcon.updatePercentView();
-                mBatteryIcon.updateVisibility();
-                break;
-            case QS_SHOW_BATTERY_ESTIMATE:
-                mBatteryRemainingIcon.mShowBatteryEstimate =
-                        TunerService.parseInteger(newValue, 0);
-                mBatteryIcon.mShowBatteryEstimate =
-                        TunerService.parseInteger(newValue, 0);
-                mBatteryRemainingIcon.updatePercentView();
-                mBatteryRemainingIcon.updateVisibility();
-                mBatteryIcon.updatePercentView();
-                mBatteryIcon.updateVisibility();
-                break;
-            case STATUS_BAR_BATTERY_STYLE:
-                mStatusBarBatteryStyle =
-                        TunerService.parseInteger(newValue, 0);
-                updateBatteryStyle();
-                break;
-            case QS_BATTERY_STYLE:
-                mQSBatteryStyle =
-                        TunerService.parseInteger(newValue, -1);
-                updateBatteryStyle();
-                break;
-            case QS_BATTERY_LOCATION:
-                int location =
-                        TunerService.parseInteger(newValue, 0);
-                if (location == 0) {
-                    mBatteryIcon.setVisibility(View.GONE);
-                    mBatteryRemainingIcon.setVisibility(View.VISIBLE);
-                } else {
-                    mBatteryRemainingIcon.setVisibility(View.GONE);
-                    mBatteryIcon.setVisibility(View.VISIBLE);
-                }
                 break;
             case STATUS_BAR_CUSTOM_HEADER:
                 mHeaderImageEnabled =
